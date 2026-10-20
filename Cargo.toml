@@ -1,0 +1,47 @@
+[package]
+name = "lilyco-crypto"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "MIT"
+description = "no_std 密码学工具箱：基于 RustCrypto 官方实现，提供爱发电签名、常量时间比较与卡密生成"
+repository = "https://github.com/lilyco-42/lilyco-crypto"
+homepage = "https://github.com/lilyco-42/lilyco-crypto"
+keywords = ["no-std", "crypto", "hmac", "afdian", "license-key"]
+categories = ["cryptography", "no-std"]
+readme = "README.md"
+
+[workspace]
+
+[features]
+default = []
+# 需要 String / Vec / format! 时开启。
+alloc = ["dep:base64ct"]
+
+[dependencies]
+# 密码学原语一律用 RustCrypto 官方实现，不自写。
+# 这些 crate 都标注了 no-std 分类，经受过大量审计与实战。
+md-5 = { version = "0.11", default-features = false }
+sha2 = { version = "0.11", default-features = false }
+hmac = { version = "0.13", default-features = false }
+subtle = { version = "2", default-features = false }
+
+# 卡密需要系统熵源。getrandom 在 no_std 下按 target 选择后端。
+getrandom = { version = "0.4", default-features = false }
+
+# 仅在 alloc 时用于十六进制/Base64 编码。
+base64ct = { version = "1", optional = true, default-features = false }
+
+[dev-dependencies]
+# 测试环境用 std，无需额外依赖。
+
+[[bin]]
+name = "keygen"
+path = "src/bin/keygen.rs"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
