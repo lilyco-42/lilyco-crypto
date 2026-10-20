@@ -243,7 +243,6 @@ pub fn verify_full(prefix: &[u8], key: &[u8], secret: &[u8]) -> bool {
 mod tests {
     extern crate std;
     use super::*;
-    use std::string::String;
 
     const SECRET: &[u8] = b"test-secret-do-not-use-in-prod";
 
@@ -378,7 +377,7 @@ mod tests {
     fn alphabet_excludes_confusables() {
         // 去掉 0/O/1/I 四个：0 与 O、1 与 I 手抄会混。
         // L 保留——它与 1 才会混，而 1 已去掉。
-        for bad in [b'0', b'O', b'1', b'I'] {
+        for &bad in b"0O1I" {
             assert!(!ALPHABET.contains(&bad), "不该包含 {}", bad as char);
         }
         assert_eq!(ALPHABET.len(), 32);
