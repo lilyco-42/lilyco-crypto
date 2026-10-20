@@ -36,6 +36,10 @@ pub const TOTAL_GROUPS: usize = DATA_GROUPS + 1;
 pub const BODY_LEN: usize = GROUP_LEN * TOTAL_GROUPS;
 /// 需要的熵字节数。
 pub const ENTROPY_LEN: usize = GROUP_LEN * DATA_GROUPS;
+/// 完整卡密（含前缀与连字符）的最大长度。
+///
+/// 前缀通常 4 字符：`PDBP-XXXX-XXXX-XXXX` = 19。留到 40 够放下较长前缀。
+pub const FULL_LEN: usize = 40;
 
 /// 失败原因。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -196,37 +200,34 @@ pub fn verify(prefix: &[u8], key: &[u8], secret: &[u8]) -> bool {
 ///
 /// 前缀不匹配时返回 `None`。
 pub fn strip_prefix(prefix: &[u8], key: &[u8], out: &mut [u8]) -> Option<usize> {
-    if out.len() < BODY_LEN {
+    if out.len() < BODY_LEN || prefix.len() > BODY_LEN {
         return None;
     }
 
+    // 完整卡密含前缀，比 BODY_LEN 长，先收进够大的临时缓冲。
+    let mut tmp = [0u8; FULL_LEN];
     let mut n = 0;
     for &c in key {
         if c == b'-' {
             continue;
         }
-        if n >= BODY_LEN {
+        if n >= FULL_LEN {
             return None;
         }
-        out[n] = c;
+        tmp[n] = c;
         n += 1;
     }
-    if n != BODY_LEN {
+
+    // 去连字符后应正好是「前缀 + BODY_LEN」
+    if n != prefix.len() + BODY_LEN {
+        return None;
+    }
+    if &tmp[..prefix.len()] != prefix {
         return None;
     }
 
-    // 前 prefix.len() 个字符必须等于前缀
-    if prefix.len() > BODY_LEN {
-        return None;
-    }
-    if &out[..prefix.len()] != prefix {
-        return None;
-    }
-
-    // 把前缀之后的 body 左移
-    let rest = BODY_LEN - prefix.len();
-    out.copy_within(prefix.len()..BODY_LEN, 0);
-    Some(rest)
+    out[..BODY_LEN].copy_from_slice(&tmp[prefix.len()..n]);
+    Some(BODY_LEN)
 }
 
 /// 校验完整卡密（含前缀）。方便调用方一次搞定。
