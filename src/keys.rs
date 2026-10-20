@@ -104,8 +104,8 @@ pub fn generate(
     }
 
     let mut data = [0u8; ENTROPY_LEN];
-    for i in 0..ENTROPY_LEN {
-        data[i] = ALPHABET[(entropy[i] as usize) & 31];
+    for (slot, &byte) in data.iter_mut().zip(entropy.iter()) {
+        *slot = ALPHABET[(byte as usize) & 31];
     }
 
     let mut check = [0u8; GROUP_LEN];
@@ -382,9 +382,9 @@ mod tests {
         }
         assert_eq!(ALPHABET.len(), 32);
         // 每个字符必须唯一，否则熵会损失。
-        for i in 0..ALPHABET.len() {
-            for j in (i + 1)..ALPHABET.len() {
-                assert_ne!(ALPHABET[i], ALPHABET[j], "字母表有重复字符");
+        for (i, &a) in ALPHABET.iter().enumerate() {
+            for &b in &ALPHABET[i + 1..] {
+                assert_ne!(a, b, "字母表有重复字符");
             }
         }
     }

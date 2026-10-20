@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn detects_every_position() {
         let base = b"0123456789abcdef";
-        for i in 0..base.len() {
+        for (i, _) in base.iter().enumerate() {
             let mut other = *base;
             other[i] ^= 0x01;
             assert!(!eq(base, &other), "position {i}");
