@@ -62,7 +62,10 @@ fn secret() -> Result<Vec<u8>, ExitCode> {
 }
 
 fn parse_prefix(raw: Option<&String>) -> Result<Vec<u8>, ExitCode> {
-    let p = raw.map(String::as_str).unwrap_or("PDBP").to_ascii_uppercase();
+    let p = raw
+        .map(String::as_str)
+        .unwrap_or("PDBP")
+        .to_ascii_uppercase();
     if !p.bytes().all(|c| c.is_ascii_uppercase()) {
         eprintln!("前缀只允许 A-Z");
         return Err(ExitCode::from(64));

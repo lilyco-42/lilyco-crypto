@@ -110,7 +110,11 @@ mod alloc_or_array {
         pub fn push_str(&mut self, s: &str) {
             let bytes = s.as_bytes();
             let room = CAP - self.len;
-            let take = if bytes.len() < room { bytes.len() } else { room };
+            let take = if bytes.len() < room {
+                bytes.len()
+            } else {
+                room
+            };
             self.data[self.len..self.len + take].copy_from_slice(&bytes[..take]);
             self.len += take;
         }
@@ -219,8 +223,14 @@ mod tests {
             token: "t2",
             ..base
         };
-        let other_user = SigningInput { user_id: "u2", ..base };
-        let other_params = SigningInput { params: "[]", ..base };
+        let other_user = SigningInput {
+            user_id: "u2",
+            ..base
+        };
+        let other_params = SigningInput {
+            params: "[]",
+            ..base
+        };
         let other_ts = SigningInput { ts: 2, ..base };
 
         assert_ne!(base_sig, other_token.sign());
