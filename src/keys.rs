@@ -311,10 +311,18 @@ mod tests {
 
     #[test]
     fn alphabet_excludes_confusables() {
-        for bad in [b'0', b'O', b'1', b'I', b'L'] {
+        // 去掉 0/O/1/I 四个：0 与 O、1 与 I 手抄会混。
+        // L 保留——它与 1 才会混，而 1 已去掉。
+        for bad in [b'0', b'O', b'1', b'I'] {
             assert!(!ALPHABET.contains(&bad), "不该包含 {}", bad as char);
         }
         assert_eq!(ALPHABET.len(), 32);
+        // 每个字符必须唯一，否则熵会损失。
+        for i in 0..ALPHABET.len() {
+            for j in (i + 1)..ALPHABET.len() {
+                assert_ne!(ALPHABET[i], ALPHABET[j], "字母表有重复字符");
+            }
+        }
     }
 
     #[cfg(feature = "os-rng")]

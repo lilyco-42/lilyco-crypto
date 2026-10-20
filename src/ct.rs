@@ -17,22 +17,28 @@ pub fn eq(a: &[u8], b: &[u8]) -> bool {
 
 /// 常量时间比较两个十六进制字符串，大小写不敏感。
 ///
-/// 非法十六进制字符视为不匹配，但仍走完整长度以保持时间一致。
+/// 任一方含非法十六进制字符时返回 `false`，但仍走完整长度以保持时间一致。
 pub fn eq_hex(a: &str, b: &str) -> bool {
     if a.len() != b.len() {
         return false;
     }
 
-    // 逐字节比较：先归一化为小写，非法字符用 0xFF 标记（必定不等）。
     let mut acc = 0u8;
+    // 单独记录「出现过非法字符」。不能只靠 0xFF 标记——
+    // 两边同为非法时 0xFF ^ 0xFF = 0，会被误判为相等。
+    let mut bad = 0u8;
+
     for (x, y) in a.bytes().zip(b.bytes()) {
-        let xn = lower_hex(x).unwrap_or(0xff);
-        let yn = lower_hex(y).unwrap_or(0xff);
-        acc |= xn ^ yn;
+        match (lower_hex(x), lower_hex(y)) {
+            (Some(xn), Some(yn)) => acc |= xn ^ yn,
+            _ => bad = 1,
+        }
     }
 
-    // 用 subtle 做最后一次判定，避免 `acc == 0` 被优化成提前返回。
-    acc.ct_eq(&0u8).into()
+    // 用 subtle 判定，避免被优化成提前返回。
+    let equal: bool = acc.ct_eq(&0u8).into();
+    let clean: bool = bad.ct_eq(&0u8).into();
+    equal & clean
 }
 
 /// 十六进制字符转数值。
