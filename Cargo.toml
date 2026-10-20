@@ -16,7 +16,10 @@ readme = "README.md"
 [features]
 default = []
 # 需要 String / Vec / format! 时开启。
-alloc = ["dep:base64ct"]
+alloc = []
+# 从系统熵源取随机数。裸机 target 没有后端，必须关掉。
+# 需要自定义 backend 时见 https://docs.rs/getrandom/#custom-backend
+os-rng = ["dep:getrandom"]
 
 [dependencies]
 # 密码学原语一律用 RustCrypto 官方实现，不自写。
@@ -26,11 +29,8 @@ sha2 = { version = "0.11", default-features = false }
 hmac = { version = "0.13", default-features = false }
 subtle = { version = "2", default-features = false }
 
-# 卡密需要系统熵源。getrandom 在 no_std 下按 target 选择后端。
-getrandom = { version = "0.4", default-features = false }
-
-# 仅在 alloc 时用于十六进制/Base64 编码。
-base64ct = { version = "1", optional = true, default-features = false }
+# 卡密需要系统熵源。裸机 target 无后端，所以放在 os-rng feature 后面。
+getrandom = { version = "0.4", optional = true, default-features = false }
 
 [dev-dependencies]
 # 测试环境用 std，无需额外依赖。
@@ -38,6 +38,7 @@ base64ct = { version = "1", optional = true, default-features = false }
 [[bin]]
 name = "keygen"
 path = "src/bin/keygen.rs"
+required-features = ["os-rng"]
 
 [profile.release]
 opt-level = "z"
@@ -45,3 +46,4 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+

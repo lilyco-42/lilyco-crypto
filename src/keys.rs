@@ -12,11 +12,19 @@
 //! * **熵由调用方提供**。`no_std` 环境熵源质量不一，本模块不假设，
 //!   统一用 [`crate::keys::generate_with_os_entropy`] 或自行传入。
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
 
-/// 卡密字母表。
-pub const ALPHABET: &[u8; 32] = b"23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+/// HMAC-SHA256 类型别名。
+type HmacSha256 = Hmac<Sha256>;
+
+/// 卡密字母表：32 个字符。
+///
+/// 从 0-9 + A-Z 共 36 个里去掉 `0`、`O`、`1`、`I` 四个易混字符。
+/// 保留 `L`（它与 `1` 才会混，而 `1` 已被去掉）。
+///
+/// 32 = 2^5，每个字符恰好 5 比特，编码不需要取模偏差处理。
+pub const ALPHABET: &[u8; 32] = b"23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 
 /// 每组字符数。
 pub const GROUP_LEN: usize = 4;
@@ -55,8 +63,8 @@ impl core::fmt::Display for KeyError {
 
 /// 计算校验组。
 fn checksum(prefix: &[u8], data: &[u8], secret: &[u8], out: &mut [u8; GROUP_LEN]) {
-    // Hmac::new_from_slice 对任意长度 key 都成立。
-    let mut mac = <Hmac<Sha256> as Mac>::new_from_slice(secret).expect("HMAC 接受任意长度 key");
+    // new_from_slice 来自 KeyInit；HMAC 接受任意长度 key。
+    let mut mac = <HmacSha256 as KeyInit>::new_from_slice(secret).expect("HMAC 接受任意长度 key");
 
     let mut msg = [0u8; 16];
     let mut len = 0;
@@ -105,6 +113,10 @@ pub fn generate(
 }
 
 /// 从系统熵源取随机数并生成卡密。
+///
+/// 需要 `os-rng` feature。裸机 target 没有 getrandom 后端，
+/// 那种环境下请用 [`generate`] 自行传入熵。
+#[cfg(feature = "os-rng")]
 pub fn generate_with_os_entropy(
     prefix: &[u8],
     secret: &[u8],
@@ -305,6 +317,7 @@ mod tests {
         assert_eq!(ALPHABET.len(), 32);
     }
 
+    #[cfg(feature = "os-rng")]
     #[test]
     fn os_entropy_produces_valid_key() {
         let mut body = [0u8; BODY_LEN];
@@ -312,6 +325,7 @@ mod tests {
         assert!(verify(b"PDBP", &body, SECRET));
     }
 
+    #[cfg(feature = "os-rng")]
     #[test]
     fn os_entropy_is_not_repeating() {
         let mut a = [0u8; BODY_LEN];

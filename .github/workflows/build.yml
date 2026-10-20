@@ -37,7 +37,8 @@ jobs:
         with:
           key: nostd-${{ matrix.target }}
 
-      # --no-default-features 关掉 alloc，只留 core。
+      # 裸机没有 getrandom 后端，必须关掉 os-rng。
+      # 默认无 alloc，只留 core。
       - name: 裸机编译（无 alloc）
         run: cargo build --release --no-default-features --target ${{ matrix.target }}
 
@@ -70,7 +71,7 @@ jobs:
         run: cargo test --all-features --verbose
 
       - name: 测试无 alloc 构建
-        run: cargo test --no-default-features --verbose
+        run: cargo test --no-default-features --features os-rng --verbose
 
   build:
     name: build / ${{ matrix.target }}
@@ -114,7 +115,7 @@ jobs:
           fi
 
       - name: 编译
-        run: cargo build --release --features alloc --target ${{ matrix.target }}
+        run: cargo build --release --features alloc,os-rng --target ${{ matrix.target }}
 
       - name: 整理产物
         shell: bash
@@ -153,3 +154,4 @@ jobs:
         with:
           files: dist/*
           generate_release_notes: true
+
