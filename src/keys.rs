@@ -160,6 +160,9 @@ pub fn format(prefix: &[u8], body: &[u8], out: &mut [u8]) -> Result<usize, KeyEr
 }
 
 /// 校验格式与校验位。不查数据库。
+///
+/// `key` 可带或不带连字符，**不含前缀**（前缀单独传）。
+/// 需要校验带前缀的完整卡密时，先用 [`strip_prefix`] 拆开。
 pub fn verify(prefix: &[u8], key: &[u8], secret: &[u8]) -> bool {
     if prefix.iter().any(|c| !c.is_ascii_uppercase()) {
         return false;
@@ -182,24 +185,57 @@ pub fn verify(prefix: &[u8], key: &[u8], secret: &[u8]) -> bool {
         return false;
     }
 
-    // 前缀
-    let mut i = 0;
-    for &p in prefix {
-        if i >= BODY_LEN || body[i] != p {
-            return false;
-        }
-        i += 1;
-    }
-
-    let rest = &body[i..];
-    if rest.len() != ENTROPY_LEN + GROUP_LEN {
-        return false;
-    }
-
     let mut expected = [0u8; GROUP_LEN];
-    checksum(prefix, &rest[..ENTROPY_LEN], secret, &mut expected);
+    checksum(prefix, &body[..ENTROPY_LEN], secret, &mut expected);
 
-    crate::ct::eq(&expected, &rest[ENTROPY_LEN..])
+    crate::ct::eq(&expected, &body[ENTROPY_LEN..])
+}
+
+/// 从完整卡密（`PDBP-XXXX-XXXX-XXXX`）里剥掉前缀与连字符，
+/// 返回写入 `out` 的裸 body 长度。
+///
+/// 前缀不匹配时返回 `None`。
+pub fn strip_prefix(prefix: &[u8], key: &[u8], out: &mut [u8]) -> Option<usize> {
+    if out.len() < BODY_LEN {
+        return None;
+    }
+
+    let mut n = 0;
+    for &c in key {
+        if c == b'-' {
+            continue;
+        }
+        if n >= BODY_LEN {
+            return None;
+        }
+        out[n] = c;
+        n += 1;
+    }
+    if n != BODY_LEN {
+        return None;
+    }
+
+    // 前 prefix.len() 个字符必须等于前缀
+    if prefix.len() > BODY_LEN {
+        return None;
+    }
+    if &out[..prefix.len()] != prefix {
+        return None;
+    }
+
+    // 把前缀之后的 body 左移
+    let rest = BODY_LEN - prefix.len();
+    out.copy_within(prefix.len()..BODY_LEN, 0);
+    Some(rest)
+}
+
+/// 校验完整卡密（含前缀）。方便调用方一次搞定。
+pub fn verify_full(prefix: &[u8], key: &[u8], secret: &[u8]) -> bool {
+    let mut body = [0u8; BODY_LEN];
+    match strip_prefix(prefix, key, &mut body) {
+        Some(n) => verify(prefix, &body[..n], secret),
+        None => false,
+    }
 }
 
 #[cfg(test)]
@@ -236,11 +272,34 @@ mod tests {
     #[test]
     fn roundtrip() {
         let body = make(b"PDBP", b"12345678");
+        // 裸 body 不含前缀
         assert!(verify(b"PDBP", &body, SECRET));
 
+        // 完整卡密含前缀，用 verify_full
         let mut out = [0u8; 40];
         let n = format(b"PDBP", &body, &mut out).unwrap();
-        assert!(verify(b"PDBP", &out[..n], SECRET));
+        assert!(verify_full(b"PDBP", &out[..n], SECRET));
+    }
+
+    #[test]
+    fn strip_prefix_removes_prefix_and_dashes() {
+        let body = make(b"PDBP", b"12345678");
+        let mut out = [0u8; 40];
+        let n = format(b"PDBP", &body, &mut out).unwrap();
+
+        let mut stripped = [0u8; BODY_LEN];
+        let m = strip_prefix(b"PDBP", &out[..n], &mut stripped).unwrap();
+        assert_eq!(m, BODY_LEN);
+        assert_eq!(&stripped[..m], &body[..]);
+    }
+
+    #[test]
+    fn strip_prefix_rejects_mismatch() {
+        let body = make(b"PDBP", b"12345678");
+        let mut out = [0u8; 40];
+        let n = format(b"PDBP", &body, &mut out).unwrap();
+        let mut stripped = [0u8; BODY_LEN];
+        assert!(strip_prefix(b"ABCD", &out[..n], &mut stripped).is_none());
     }
 
     #[test]
@@ -267,13 +326,18 @@ mod tests {
     #[test]
     fn rejects_wrong_prefix() {
         let body = make(b"PDBP", b"12345678");
+        let mut out = [0u8; 40];
+        let n = format(b"PDBP", &body, &mut out).unwrap();
+        // 完整卡密：前缀不匹配必须拒绝
+        assert!(!verify_full(b"ABCD", &out[..n], SECRET));
+        // 裸 body：前缀参与 HMAC，换前缀后校验位对不上
         assert!(!verify(b"ABCD", &body, SECRET));
     }
 
     #[test]
     fn rejects_wrong_length() {
-        assert!(!verify(b"PDBP", b"PDBP-2345-6789", SECRET));
-        assert!(!verify(b"PDBP", b"PDBP-2345-6789-ABCD-EXTRA", SECRET));
+        assert!(!verify(b"PDBP", b"2345-6789", SECRET));
+        assert!(!verify(b"PDBP", b"2345-6789-ABCD-EXTRA", SECRET));
         assert!(!verify(b"PDBP", b"", SECRET));
     }
 
@@ -331,6 +395,11 @@ mod tests {
         let mut body = [0u8; BODY_LEN];
         generate_with_os_entropy(b"PDBP", SECRET, &mut body).unwrap();
         assert!(verify(b"PDBP", &body, SECRET));
+
+        // 格式化后仍可校验
+        let mut out = [0u8; 40];
+        let n = format(b"PDBP", &body, &mut out).unwrap();
+        assert!(verify_full(b"PDBP", &out[..n], SECRET));
     }
 
     #[cfg(feature = "os-rng")]
@@ -343,3 +412,4 @@ mod tests {
         assert_ne!(a, b, "两次生成不应相同");
     }
 }
+

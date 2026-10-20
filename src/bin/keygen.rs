@@ -125,7 +125,7 @@ fn verify(args: &[String]) -> ExitCode {
     };
 
     let upper = key.to_ascii_uppercase();
-    if keys::verify(&prefix, upper.as_bytes(), &secret) {
+    if keys::verify_full(&prefix, upper.as_bytes(), &secret) {
         println!("有效");
         ExitCode::SUCCESS
     } else {
