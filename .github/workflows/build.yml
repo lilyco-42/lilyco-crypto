@@ -93,6 +93,10 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             artifact: keygen-aarch64-apple-darwin
+          # Intel Mac 也需要，否则 x86_64-apple-darwin 用户装不了。
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: keygen-x86_64-apple-darwin
     steps:
       - uses: actions/checkout@v4
 
@@ -172,5 +176,6 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: cargo publish --registry crates-io
+
 
 
