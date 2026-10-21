@@ -83,16 +83,16 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            artifact: keygen-linux-x86_64
+            artifact: keygen-x86_64-unknown-linux-musl
           - os: ubuntu-latest
             target: aarch64-unknown-linux-musl
-            artifact: keygen-linux-aarch64
+            artifact: keygen-aarch64-unknown-linux-musl
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact: keygen-windows-x86_64.exe
+            artifact: keygen-x86_64-pc-windows-msvc.exe
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact: keygen-macos-arm64
+            artifact: keygen-aarch64-apple-darwin
     steps:
       - uses: actions/checkout@v4
 
@@ -154,4 +154,23 @@ jobs:
         with:
           files: dist/*
           generate_release_notes: true
+
+  # 发布到 crates.io，让 `cargo binstall lilyco-crypto` 能查到。
+  # 顺序很重要：先发 Release 上传二进制，再发 crate——
+  # 否则用户可能在 crate 可见但二进制还没上传的空窗期安装失败。
+  publish:
+    name: publish / crates.io
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: 发布
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --registry crates-io
+
 

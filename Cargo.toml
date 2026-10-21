@@ -40,6 +40,22 @@ name = "keygen"
 path = "src/bin/keygen.rs"
 required-features = ["os-rng"]
 
+# cargo binstall 支持。
+#
+# 本仓库禁止本地编译，release 产物由 CI 构建并上传到 GitHub Releases。
+# 资产名约定：keygen-{完整 target triple}，不带版本号——
+# 版本已经体现在下载路径的 /v{ version }/ 里。
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/keygen-{ target }{ archive-suffix }"
+pkg-fmt = "bin"
+bin-dir = "{ bin }{ binary-ext }"
+disabled-strategies = ["quick-install", "compile"]
+
+# Linux 只产出 musl 静态二进制，但 binstall 默认按 gnu 三元组查找。
+# 这里把 gnu 请求映射到同名 musl 资产：静态链接在 gnu 系统上直接可用。
+[package.metadata.binstall.overrides.'cfg(all(target_os = "linux", target_env = "gnu"))']
+pkg-url = "{ repo }/releases/download/v{ version }/keygen-{ target-arch }-unknown-linux-musl{ archive-suffix }"
+
 [profile.release]
 opt-level = "z"
 lto = true
