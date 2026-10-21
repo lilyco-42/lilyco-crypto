@@ -97,15 +97,36 @@ assert!(keys::verify(b"PDBP", &out[..n], secret));
 
 ## 安装
 
+作为库用，在 `Cargo.toml` 里加：
+
+```toml
+lilyco-crypto = "0.1.3"
+```
+
+要装 `keygen` 命令行工具：
+
 ```bash
 cargo binstall lilyco-crypto
 ```
 
-一条命令装好 `keygen`，不编译。
+一条命令装好，不编译。
 
-> 库本身不需要安装——在 `Cargo.toml` 里加
-> `lilyco-crypto = "0.1.1"` 即可。`keygen` 二进制需要 `os-rng` feature，
-> 但 `cargo install` 默认不带，所以推荐用 `binstall`。
+> `keygen` 需要 `os-rng` feature，`cargo install` 默认不带，
+> 所以推荐 `binstall`——它直接下预编译产物。
+
+### 预编译平台
+
+| 平台 | 文件 |
+| --- | --- |
+| Linux x86_64 | `keygen-x86_64-unknown-linux-musl` |
+| Linux aarch64 | `keygen-aarch64-unknown-linux-musl` |
+| Windows x86_64 | `keygen-x86_64-pc-windows-msvc.exe` |
+| macOS Apple Silicon | `keygen-aarch64-apple-darwin` |
+| macOS Intel | `keygen-x86_64-apple-darwin` |
+
+Linux 产物是静态链接（musl），`ldd` 显示 `statically linked`，
+可以直接扔进 Alpine 容器。glibc 系统（Debian / Ubuntu / RHEL）
+通过 `[package.metadata.binstall.overrides]` 映射到同一个文件。
 
 ## CLI
 
@@ -162,4 +183,5 @@ CI 会跑：
 ## 许可
 
 [MIT](LICENSE)
+
 
