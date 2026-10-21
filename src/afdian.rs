@@ -210,6 +210,45 @@ mod tests {
     }
 
     #[test]
+    fn sign_matches_live_server_vector() {
+        // 2026-10 用真实凭据打 /api/open/query-plan 时，服务端在
+        // `data.debug.kv_string` 里回显了它自己拼的原文：
+        //
+        //   params{"page":1}ts1792559486user_ide313e0b...
+        //
+        // 注意开头没有 "token" 这个字面量，token 的值直接顶在最前面。
+        // 当时把 md5(token + "params" + ...) 与
+        // md5("token" + token + "params" + ...) 两种都试了，
+        // 只有前者通过（后者返回 ec=400005 sign validation failed）。
+        //
+        // 这条测试锁死这个顺序：任何改动导致签名变化，这里先红。
+        let input = SigningInput {
+            token: "test-token",
+            user_id: "test-user-id",
+            params: r#"{"plan_id":"63f94afacc9d11f19fbe5254001e7c00"}"#,
+            ts: 1792559000,
+        };
+        assert_eq!(
+            sign_hex(&input),
+            "1597de9e29375ac5c59e09a70ba489c2",
+            "签名算法与线上不一致"
+        );
+    }
+
+    #[test]
+    fn cjk_params_use_raw_utf8_in_signature() {
+        // 中文按 UTF-8 原字节参与，不能转义成 \uXXXX。
+        // 这个期望值用 Python hashlib 独立算过。
+        let input = SigningInput {
+            token: "test-token",
+            user_id: "test-user-id",
+            params: r#"{"name":"中文"}"#,
+            ts: 1792559000,
+        };
+        assert_eq!(sign_hex(&input), "a26f19b7389a76cc23c13b9128b195f8");
+    }
+
+    #[test]
     fn sign_depends_on_every_field() {
         let base = SigningInput {
             token: "t",
