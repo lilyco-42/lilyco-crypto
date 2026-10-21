@@ -181,8 +181,8 @@ mod tests {
     #[test]
     fn sign_is_32_hex() {
         let s = SigningInput {
-            token: "PLACEHOLDER_TOKEN",
-            user_id: "PLACEHOLDER_USER_ID",
+            token: "test-token",
+            user_id: "test-user-id",
             params: "{}",
             ts: 1792510000,
         };
