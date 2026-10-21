@@ -95,6 +95,18 @@ assert!(keys::verify(b"PDBP", &out[..n], secret));
 - **校验位**是前 8 位的 HMAC 截断，输错一位立刻发现
 - **熵由调用方提供**，`no_std` 环境熵源质量不一，本库不假设
 
+## 安装
+
+```bash
+cargo binstall lilyco-crypto
+```
+
+一条命令装好 `keygen`，不编译。
+
+> 库本身不需要安装——在 `Cargo.toml` 里加
+> `lilyco-crypto = "0.1.1"` 即可。`keygen` 二进制需要 `os-rng` feature，
+> 但 `cargo install` 默认不带，所以推荐用 `binstall`。
+
 ## CLI
 
 ```bash
@@ -104,7 +116,10 @@ keygen gen PDBP 5              # 生成 5 个
 keygen verify PDBP-ABCD-EFGH-IJKM
 ```
 
-产物见 [Releases](https://github.com/lilyco-42/lilyco-crypto/releases)。
+`KEYGEN_SECRET` 至少 16 字节，泄露等于所有卡密可伪造。
+
+产物见 [Releases](https://github.com/lilyco-42/lilyco-crypto/releases)，
+命名约定 `keygen-{target triple}`，由 `[package.metadata.binstall]` 描述。
 
 ## no_std 是怎么验证的
 
@@ -147,3 +162,4 @@ CI 会跑：
 ## 许可
 
 [MIT](LICENSE)
+
