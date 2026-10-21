@@ -1,6 +1,6 @@
 [package]
 name = "lilyco-crypto"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.85"
 license = "MIT"
@@ -62,4 +62,5 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+
 
